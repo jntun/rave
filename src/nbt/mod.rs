@@ -105,9 +105,7 @@ impl Parser {
 
     fn nbt_barray(&mut self) -> Result<TAGByteArray, Error> {
         let length = self.nbt_int()?;
-        if length > 0 && length >= self.length as i32 {
-            return Err(Error::EndOfBytes)
-        }
+        self.check_length(length)?;
         let mut body = Vec::new();
         for _ in 0..length {
             body.push(self.nbt_byte()?);
@@ -137,9 +135,7 @@ impl Parser {
     fn nbt_list(&mut self) -> Result<TAGList, Error> {
         let id = self.nbt_byte()?;
         let length = self.nbt_int()?;
-        if length >= self.length as i32 {
-            return Err(Error::EndOfBytes);
-        }
+        self.check_length(length)?;
 
         if length > max_nest_depth as i32 {
             return Err(Error::ExceedsMaxNestingDepth(length));
@@ -162,6 +158,16 @@ impl Parser {
             }
         }
         Ok(TAGList{id, tags})
+    }
+
+    fn check_length(&self, length: TAGInt) -> Result<(), Error> {
+        if length < 0 {
+            return Err(Error::NegativeLength(length))
+        }
+        if length >= self.length as i32 {
+            return Err(Error::EndOfBytes);
+        }
+        Ok(())
     }
 
     fn consume(&mut self) -> Result<NBT, Error> {
