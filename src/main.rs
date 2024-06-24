@@ -25,9 +25,8 @@ fn main() {
         panic!("Unable to decode data!");
     };
 
-    let mut nbtp = nbt::Parser::new(data);
     let mut nbts = Vec::new();
-    if let Err(e) = nbtp.parse(&mut nbts) {
+    if let Err(e) = nbt::Parser::new(data).parse(&mut nbts) {
         println!("this is not working:\n\t{}", e);
         return;
     }
