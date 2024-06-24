@@ -56,7 +56,7 @@ pub enum Error {
     EndOfBytes,
     InvalidType,
     ExceedsMaxNestingDepth(i32),
-    InvalidListType(String),
+    InvalidListType(TAGByte),
     InvalidByteSequence,
     TAGString(String),
     TAGShort(String),
@@ -157,7 +157,7 @@ impl Parser {
                 08 => tags.push(NBTData::String(self.nbt_string()?)),
                 09 => tags.push(NBTData::List(self.nbt_list()?)),
                 //10 => tags.push(NBTData::Compound(self.nbt_compound()?)),
-                _ => return Err(Error::InvalidListType(String::from("END"))),
+                _ => return Err(Error::InvalidListType(id)),
             }
         }
         Ok(TAGList{id, tags})
