@@ -5,41 +5,41 @@
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
 
-const max_nest_depth: i32 = 512;
+const MAX_DEPTH_NEST: i32 = 512;
 
-type TAGByte = u8;
-type TAGShort = i16;
-type TAGInt = i32;
-type TAGLong = i64;
-type TAGFloat = f32;
-type TAGDouble = f64;
+pub type TAGByte = u8;
+pub type TAGShort = i16;
+pub type TAGInt = i32;
+pub type TAGLong = i64;
+pub type TAGFloat = f32;
+pub type TAGDouble = f64;
 
-struct TAGByteArray {
+pub struct TAGByteArray {
     body:   Vec<TAGByte>,
 }
 
-struct TAGString {
+pub struct TAGString {
     str:    Vec<TAGByte>,
 }
 
-struct TAGList {
+pub struct TAGList {
     id:     TAGByte,
     tags:   Vec<NBTData>,
 }
 
-struct TAGCompound {
+pub struct TAGCompound {
     tags: Vec<NBT>,
 }
 
-struct TAGIArray {
+pub struct TAGIArray {
     ints: Vec<TAGInt>,
 }
 
-struct TAGLArray {
+pub struct TAGLArray {
     longs: Vec<TAGLong>,
 }
 
-enum NBTData {
+pub enum NBTData {
     End,
     Byte(TAGByte),
     Short(TAGShort),
@@ -55,7 +55,7 @@ enum NBTData {
     LArray(TAGLArray),
 }
 
-struct NBT {
+pub struct NBT {
     name:    TAGString,
     payload: NBTData,
 }
@@ -145,7 +145,7 @@ impl Parser {
         let length = self.nbt_int()?;
         self.check_length(length)?;
 
-        if length > max_nest_depth as i32 {
+        if length > MAX_DEPTH_NEST as i32 {
             return Err(Error::ExceedsMaxNestingDepth(length));
         }
 
@@ -166,6 +166,19 @@ impl Parser {
             }
         }
         Ok(TAGList{id, tags})
+    }
+
+    fn nbt_compound(&mut self) -> Result<TAGCompound, Error> {
+        let mut compound = TAGCompound{tags: Vec::new()};
+        for _ in 0..MAX_DEPTH_NEST {
+            let tag = self.consume()?;
+            compound.tags.push(tag);
+            match compound.tags.last().unwrap().payload {
+                NBTData::End => return Ok(compound),
+                _ => (),
+            }
+        }
+        Err(Error::ExceedsMaxNestingDepth(513))
     }
 
     fn nbt_iarray(&mut self) -> Result<TAGIArray, Error> {
@@ -217,67 +230,22 @@ impl Parser {
         };
 
         match byte {
-            0  => {
-                print!("<0>  End");
-            }
-            1  => {
-                print!("<1>  Byte");
-                data = NBTData::Byte(self.nbt_byte()?);
-            }
-            2  => {
-                print!("<2>  Short");
-                data = NBTData::Short(self.nbt_short()?);
-            }
-            3  => {
-                print!("<3>  Int");
-                data = NBTData::Int(self.nbt_int()?);
-            }
-            4  => {
-                print!("<4>  Long");
-                data = NBTData::Long(self.nbt_long()?);
-            }
-            5  => {
-                print!("<5>  Float");
-                data = NBTData::Float(self.nbt_float()?);
-            }
-            6  => {
-                print!("<6>  Double");
-                data = NBTData::Double(self.nbt_double()?);
-            }
-            7  => print!("<7>  BArray"),
-            8  => {
-                print!("<8>  String");
-                data = NBTData::String(self.nbt_string()?);
-            },
-            9  => {
-                print!("<9>  List");
-                data = NBTData::List(self.nbt_list()?);
-            }
-            10 => print!("<10> Compound"),
-            11 => {
-                print!("<11> IArray");
-                data = NBTData::IArray(self.nbt_iarray()?);
-            }
-            12 => {
-                print!("<12> LArray");
-                data = NBTData::LArray(self.nbt_larray()?);
-            }
-            //_ => return Err(Error::InvalidByteSequence),
-            _ => {
-                newline = false;
-            }
+            0  => (),
+            1  => data = NBTData::Byte(self.nbt_byte()?),
+            2  => data = NBTData::Short(self.nbt_short()?),
+            3  => data = NBTData::Int(self.nbt_int()?),
+            4  => data = NBTData::Long(self.nbt_long()?),
+            5  => data = NBTData::Float(self.nbt_float()?),
+            6  => data = NBTData::Double(self.nbt_double()?),
+            7  => data = NBTData::BArray(self.nbt_barray()?),
+            8  => data = NBTData::String(self.nbt_string()?),
+            9  => data = NBTData::List(self.nbt_list()?),
+            10 => data = NBTData::Compound(self.nbt_compound()?),
+            11 => data = NBTData::IArray(self.nbt_iarray()?),
+            12 => data = NBTData::LArray(self.nbt_larray()?),
+            _ => return Err(Error::InvalidByteSequence),
         };
 
-        print!(" ");
-
-        for byte in name.str.clone() {
-            print!("{}", byte as char);
-        }
-
-        if newline {
-            print!("\n");
-        }
-        
         return Ok(NBT{name, payload: data});
     }
 
@@ -290,11 +258,11 @@ impl Parser {
 }
 
 impl Parser {
-    pub fn parse(&mut self) -> Result<(), Error> {
+    pub fn parse(&mut self, nbts: &mut Vec<NBT>) -> Result<(), Error> {
         while !self.at_end() {
             match self.consume() {
-                Ok(nbt) => self.tags.push(nbt),
-                Err(e) => return Err(e),
+                Ok(nbt) => nbts.push(nbt),
+                Err(e)  => return Err(e),
             }
         }
         Ok(())
@@ -349,7 +317,7 @@ impl std::fmt::Display for Error {
             Error::InvalidListType(tag_id) => write!(f, "List cannot contain elements of type '{}'.", tag_id),
             Error::InvalidByteSequence => write!(f, "Reached unparseable byte sequence."),
             Error::NegativeLength(length) => write!(f, "{} is an invalid length due to being negative.", length), 
-            Error::ExceedsMaxNestingDepth(length) => write!(f, "Tag with nested tags exceeds maximum allowed nesting depth of {}. Length of tag: {}", max_nest_depth, length),
+            Error::ExceedsMaxNestingDepth(length) => write!(f, "Tag with nested tags exceeds maximum allowed nesting depth of {}. Length of tag: {}", MAX_DEPTH_NEST, length),
             Error::TAGString(msg) => write!(f, "{}", msg),
             Error::TAGShort(msg) => write!(f, "{}", msg),
             Error::TAGByte => write!(f, "{}", "Unable to read a NBT byte value (this should never happen...)."),

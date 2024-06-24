@@ -8,7 +8,7 @@ use flate2::read::GzDecoder;
 mod nbt;
 
 pub const CODENAME: &str = "CAVE";
-pub const ROOT_DIR: &str = "/Users/justin/Documents/cave/";
+pub const ROOT_DIR: &str = "/Users/justin/Documents/rave/";
 pub const SAVE_DIR: &str = "static/01/";
 
 fn full_path() -> String {
@@ -26,10 +26,13 @@ fn main() {
     };
 
     let mut nbtp = nbt::Parser::new(data);
-    if let Err(e) = nbtp.parse() {
+    let mut nbts = Vec::new();
+    if let Err(e) = nbtp.parse(&mut nbts) {
         println!("this is not working:\n\t{}", e);
         return;
     }
 
+    println!("root: {}", nbts.first().unwrap());
+
     println!("done");
-    }
+}
