@@ -5,7 +5,7 @@
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
 
-const max_nest_max_depth: u32 = 512;
+const max_nest_depth: i32 = 512;
 
 type TAGByte = u8;
 type TAGShort = i16;
@@ -58,6 +58,7 @@ struct NBT {
 pub enum Error {
     EndOfBytes,
     InvalidType,
+    ExceedsMaxNestingDepth(i32),
     InvalidListType(String),
     InvalidByteSequence,
     TAGString(String),
@@ -140,6 +141,10 @@ impl Parser {
         let length = self.nbt_int()?;
         if length >= self.length as i32 {
             return Err(Error::EndOfBytes);
+        }
+
+        if length > max_nest_depth as i32 {
+            return Err(Error::ExceedsMaxNestingDepth(length));
         }
 
         let mut tags = Vec::new();
@@ -313,6 +318,7 @@ impl std::fmt::Display for Error {
             Error::InvalidType => write!(f, "{}", "Encountered an invalid opcode byte sequence."),
             Error::InvalidListType(tag_id) => write!(f, "List cannot contain elements of type '{}'.", tag_id),
             Error::InvalidByteSequence => write!(f, "Reached unparseable byte sequence."),
+            Error::ExceedsMaxNestingDepth(length) => write!(f, "Tag with nested tags exceeds maximum allowed nesting depth of {}. Length of tag: {}", max_nest_depth, length),
             Error::TAGString(msg) => write!(f, "{}", msg),
             Error::TAGShort(msg) => write!(f, "{}", msg),
             Error::TAGByte => write!(f, "{}", "Unable to read a NBT byte value (this should never happen...)."),
