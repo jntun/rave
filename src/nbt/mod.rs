@@ -31,6 +31,14 @@ struct TAGCompound {
     tags: Vec<NBT>,
 }
 
+struct TAGIArray {
+    ints: Vec<TAGInt>,
+}
+
+struct TAGLArray {
+    longs: Vec<TAGLong>,
+}
+
 enum NBTData {
     End,
     Byte(TAGByte),
@@ -43,8 +51,8 @@ enum NBTData {
     String(TAGString),
     List(TAGList),
     Compound(TAGCompound),
-    IArray,
-    LArray,
+    IArray(TAGIArray),
+    LArray(TAGLArray),
 }
 
 struct NBT {
@@ -160,6 +168,26 @@ impl Parser {
         Ok(TAGList{id, tags})
     }
 
+    fn nbt_iarray(&mut self) -> Result<TAGIArray, Error> {
+        let length = self.nbt_int()?;
+        self.check_length(length)?;
+        let mut ints = Vec::new();
+        for _ in 0..length {
+            ints.push(self.nbt_int()?);
+        }
+        Ok(TAGIArray{ints})
+    }
+
+    fn nbt_larray(&mut self) -> Result<TAGLArray, Error> {
+        let length = self.nbt_int()?;
+        self.check_length(length)?;
+        let mut longs = Vec::new();
+        for _ in 0..length {
+            longs.push(self.nbt_long()?);
+        }
+        Ok(TAGLArray{longs})
+    }
+
     fn check_length(&self, length: TAGInt) -> Result<(), Error> {
         if length < 0 {
             return Err(Error::NegativeLength(length))
@@ -228,13 +256,11 @@ impl Parser {
             10 => print!("<10> Compound"),
             11 => {
                 print!("<11> IArray");
-                //data = NBTData::IArray(self.nbt_iarray()?);
-                return Err(Error::InvalidByteSequence);
+                data = NBTData::IArray(self.nbt_iarray()?);
             }
             12 => {
                 print!("<12> LArray");
-                //data = NBTData::LArray(self.nbt_larray()?);
-                return Err(Error::InvalidByteSequence);
+                data = NBTData::LArray(self.nbt_larray()?);
             }
             //_ => return Err(Error::InvalidByteSequence),
             _ => {
@@ -309,8 +335,8 @@ impl std::fmt::Display for NBTData {
                 write!(f, "]")
             }
             NBTData::Compound(compound) => write!(f, "{}", "<10> Compound"),
-            NBTData::IArray => write!(f, "{}", "<11> IArray"),
-            NBTData::LArray => write!(f, "{}", "<12> LArray"),
+            NBTData::IArray(ints) => write!(f, "{}", "<11> IArray"),
+            NBTData::LArray(longs) => write!(f, "{}", "<12> LArray"),
         }
     }
 }
