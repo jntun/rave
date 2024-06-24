@@ -55,6 +55,7 @@ struct NBT {
 pub enum Error {
     EndOfBytes,
     InvalidType,
+    NegativeLength(i32),
     ExceedsMaxNestingDepth(i32),
     InvalidListType(TAGByte),
     InvalidByteSequence,
@@ -315,6 +316,7 @@ impl std::fmt::Display for Error {
             Error::InvalidType => write!(f, "{}", "Encountered an invalid opcode byte sequence."),
             Error::InvalidListType(tag_id) => write!(f, "List cannot contain elements of type '{}'.", tag_id),
             Error::InvalidByteSequence => write!(f, "Reached unparseable byte sequence."),
+            Error::NegativeLength(length) => write!(f, "{} is an invalid length due to being negative.", length), 
             Error::ExceedsMaxNestingDepth(length) => write!(f, "Tag with nested tags exceeds maximum allowed nesting depth of {}. Length of tag: {}", max_nest_depth, length),
             Error::TAGString(msg) => write!(f, "{}", msg),
             Error::TAGShort(msg) => write!(f, "{}", msg),
