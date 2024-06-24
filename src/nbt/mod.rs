@@ -15,18 +15,15 @@ type TAGFloat = f32;
 type TAGDouble = f64;
 
 struct TAGByteArray {
-    length: TAGInt,
     body:   Vec<TAGByte>,
 }
 
 struct TAGString {
-    length: TAGShort,
     str:    Vec<TAGByte>,
 }
 
 struct TAGList {
     id:     TAGByte,
-    length: TAGInt,
     tags:   Vec<NBTData>,
 }
 
@@ -114,7 +111,7 @@ impl Parser {
         for _ in 0..length {
             body.push(self.nbt_byte()?);
         }
-        Ok(TAGByteArray{length, body})
+        Ok(TAGByteArray{body})
     }
 
     fn nbt_string(&mut self) -> Result<TAGString, Error> {
@@ -133,7 +130,7 @@ impl Parser {
             str.push(byte);
         }
             
-        Ok(TAGString{length, str})
+        Ok(TAGString{str})
     }
 
     fn nbt_list(&mut self) -> Result<TAGList, Error> {
@@ -163,7 +160,7 @@ impl Parser {
                 _ => return Err(Error::InvalidListType(String::from("END"))),
             }
         }
-        Ok(TAGList{id, length, tags})
+        Ok(TAGList{id, tags})
     }
 
     fn consume(&mut self) -> Result<NBT, Error> {
@@ -174,7 +171,7 @@ impl Parser {
         };
 
         let name = match byte {
-            0 => { TAGString{length: 0, str: Vec::new()} },
+            0 => { TAGString{str: Vec::new()} },
             1..12 => {
                 match self.nbt_string() {
                     Ok(name) => name,
