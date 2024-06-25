@@ -283,6 +283,12 @@ impl std::fmt::Display for NBT {
     }
 }
 
+impl std::fmt::Display for TAGString {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8(self.str.clone()).unwrap())
+    }
+}
+
 impl std::fmt::Display for NBTData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -294,15 +300,21 @@ impl std::fmt::Display for NBTData {
             NBTData::Float(fl) => write!(f, "<05> Float [{}]", fl),
             NBTData::Double(d) => write!(f, "<06> Double [{}]", d),
             NBTData::BArray(array) => write!(f, "<07> BArray {}", String::from_utf8(array.body.clone()).unwrap()),
-            NBTData::String(str) => write!(f, "<08> String {:?}", str.str),
+            NBTData::String(str) => write!(f, "<08> String {:?}", String::from_utf8(str.str.clone()).unwrap()),
             NBTData::List(list) => {
-                write!(f, "<09> List {}[", list.id)?;
+                write!(f, "<09> List {} [", list.tags.len())?;
                 for tag in list.tags.iter() {
-                    write!(f, "{} ", tag)?;
+                    write!(f, "\n\t{}", tag)?;
                 }
-                write!(f, "]")
+                write!(f, "\n\t]")
             }
-            NBTData::Compound(compound) => write!(f, "{}", "<10> Compound"),
+            NBTData::Compound(compound) => {
+                write!(f, "{}", "<10> Compound [\n")?;
+                for tag in compound.tags.iter() {
+                    write!(f, "\n\t{}: {}", tag.name, tag.payload)?;
+                }
+                write!(f, "\n{}", "]")
+            }
             NBTData::IArray(ints) => write!(f, "{}", "<11> IArray"),
             NBTData::LArray(longs) => write!(f, "{}", "<12> LArray"),
         }
