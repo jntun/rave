@@ -211,7 +211,6 @@ impl Parser {
     }
 
     fn consume(&mut self) -> Result<NBT, Error> {
-        let mut newline = true;
         let mut data: NBTData = NBTData::End;
         let Ok(byte) = self.nbt_byte() else {
             return Err(Error::InvalidType);
