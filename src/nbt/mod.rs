@@ -15,28 +15,28 @@ pub type TAGFloat = f32;
 pub type TAGDouble = f64;
 
 pub struct TAGByteArray {
-    body:   Vec<TAGByte>,
+    pub body: Vec<TAGByte>,
 }
 
 pub struct TAGString {
-    str:    Vec<TAGByte>,
+    pub str: Vec<TAGByte>,
 }
 
 pub struct TAGList {
-    id:     TAGByte,
-    tags:   Vec<NBTData>,
+    id:         TAGByte,
+    pub tags:   Vec<NBTData>,
 }
 
 pub struct TAGCompound {
-    tags: Vec<NBT>,
+    pub tags: Vec<NBT>,
 }
 
 pub struct TAGIArray {
-    ints: Vec<TAGInt>,
+    pub ints: Vec<TAGInt>,
 }
 
 pub struct TAGLArray {
-    longs: Vec<TAGLong>,
+    pub longs: Vec<TAGLong>,
 }
 
 pub enum NBTData {
@@ -56,8 +56,8 @@ pub enum NBTData {
 }
 
 pub struct NBT {
-    name:    TAGString,
-    payload: NBTData,
+    pub name:    TAGString,
+    pub payload: NBTData,
 }
 
 pub enum Error {
@@ -75,7 +75,6 @@ pub enum Error {
 pub struct Parser {
     length: usize,
     bytes: Cursor<Vec<u8>>,
-    tags:  Vec<NBT>,
 }
 
 impl Parser {
@@ -272,7 +271,6 @@ impl Parser {
         Self { 
             length: bytes.len(),
             bytes: Cursor::new(bytes), 
-            tags:  Vec::new(),
         }
     }
 }
