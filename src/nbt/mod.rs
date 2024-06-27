@@ -274,6 +274,15 @@ impl Parser {
     }
 }
 
+impl Default for NBT {
+    fn default() -> Self {
+        Self {
+            name:    TAGString{str: Vec::new()},
+            payload: NBTData::End,
+        }
+    }
+}
+
 impl std::fmt::Display for NBT {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}: {}", self.name.str, self.payload)
