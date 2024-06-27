@@ -290,12 +290,12 @@ impl std::fmt::Display for NBTData {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             NBTData::End => write!(f, "{}", "<00> End {}"),
-            NBTData::Byte(b) => write!(f, "<01> Byte [{}]", b),
-            NBTData::Short(s) => write!(f, "<02> Short [{}]", s),
-            NBTData::Int(i) => write!(f, "<03> Int [{}]", i),
-            NBTData::Long(l) => write!(f, "<04> Long [{}]", l),
-            NBTData::Float(fl) => write!(f, "<05> Float [{}]", fl),
-            NBTData::Double(d) => write!(f, "<06> Double [{}]", d),
+            NBTData::Byte(b) => write!(f, "<01> Byte {}", b),
+            NBTData::Short(s) => write!(f, "<02> Short {}", s),
+            NBTData::Int(i) => write!(f, "<03> Int {}", i),
+            NBTData::Long(l) => write!(f, "<04> Long {}", l),
+            NBTData::Float(fl) => write!(f, "<05> Float {}", fl),
+            NBTData::Double(d) => write!(f, "<06> Double {}", d),
             NBTData::BArray(array) => write!(f, "<07> BArray {}", String::from_utf8(array.body.clone()).unwrap()),
             NBTData::String(str) => write!(f, "<08> String {:?}", String::from_utf8(str.str.clone()).unwrap()),
             NBTData::List(list) => {
@@ -312,8 +312,20 @@ impl std::fmt::Display for NBTData {
                 }
                 write!(f, "\n{}", "]")
             }
-            NBTData::IArray(ints) => write!(f, "{}", "<11> IArray"),
-            NBTData::LArray(longs) => write!(f, "{}", "<12> LArray"),
+            NBTData::IArray(iarray) => {
+                write!(f, "{} {}\n\t{}", "<11> IArray ", iarray.ints.len(), "( ", )?;
+                for int in iarray.ints.iter() {
+                    write!(f, "{}, ", int)?;
+                }
+                write!(f, "{}", ")")
+            }
+            NBTData::LArray(larray) => {
+                write!(f, "{}\n\t{}", "<12> LArray", "( ")?;
+                for long in larray.longs.iter() {
+                    write!(f, "{}, ", long)?;
+                }
+                write!(f, "{}", ")")
+            }
         }
     }
 }
