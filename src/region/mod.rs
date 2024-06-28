@@ -7,15 +7,22 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use crate::nbt::NBT;
 
+const SECTOR: usize = 1024 * 4;
 const ENTRIES: usize = 1024;
 
 pub enum Error {
     InvalidLocation(String),
+    CouldntSortChunks,
 }
 
 pub struct Parser {
     length: usize,
     bytes:  Cursor<Vec<u8>>,
+}
+
+pub struct Chunk {
+    size: usize,
+    root: NBT,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -27,6 +34,12 @@ struct Location {
 #[derive(Clone, Copy, Debug)]
 struct Timestamp {
     entry: i32,
+}
+
+#[derive(Clone)]
+struct ChunkData {
+    location: Location,
+    timestamp: Timestamp,
 }
 
 impl Parser {
@@ -46,20 +59,73 @@ impl Parser {
         }
         Ok(timestamps)
     }
+
+    fn chunk(&mut self, data: &ChunkData) -> Result<Chunk, Error> {
+        println!("{:<3?} {:<8?}", data.location, data.timestamp);
+        Ok(Chunk{ size: 0, root: NBT::default() })
+    }
+}
+
+fn sort_chunk_data_by_location(data: Vec<ChunkData>) -> Result<Vec<ChunkData>, Error> {
+    let mut chunk_data = Vec::new();
+    for datum in data.into_iter() {
+        let offset: usize = datum.location.offset.try_into().unwrap();
+        if offset >= chunk_data.len() {
+            chunk_data.resize(offset+1, ChunkData::default());
+        }
+        chunk_data[offset] = datum;
+    }
+
+    chunk_data.retain(|datum| datum.location.offset != 0);
+    Ok(chunk_data)
 }
 
 impl Parser {
-    pub fn parse(&mut self, nbt: &mut NBT) -> Result<(), Error> {
-        let mut nbt: NBT = NBT::default();
+    pub fn parse(&mut self) -> Result<NBT, Error> {
         let locations = self.locations()?;
-        println!("{:?}", locations);
-        Ok(())
+        let timestamps = self.timestamps()?;
+
+        let mut nbt: NBT = NBT::default();
+        let mut chunk_data = Vec::new();
+        let mut chunks = Vec::new();
+
+        for (location, timestamp) in locations.into_iter().zip(timestamps.into_iter()) {
+            if location.offset != 0 || location.sector != 0 {
+               chunk_data.push(ChunkData{ location, timestamp });
+            }
+        }
+
+        chunk_data = sort_chunk_data_by_location(chunk_data)?;
+        for data in chunk_data.into_iter() {
+            chunks.push(self.chunk(&data)?);
+        }
+        Ok(nbt)
     }
 
     pub fn new(bytes: Vec<u8>) -> Self {
         Self {
             length: bytes.len(),
             bytes:  Cursor::new(bytes),
+        }
+    }
+}
+
+impl Location {
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            _ => todo!(),
+        }
+    }
+}
+
+impl Default for ChunkData {
+    fn default() -> Self {
+        Self {
+            location: Location { offset: 0, sector: 0 },
+            timestamp: Timestamp { entry: 0 },
         }
     }
 }
