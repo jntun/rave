@@ -2,10 +2,11 @@
 // Created by Justin Tunheim on 6/26/24
 //
 
-use std::io::Cursor;
+use std::io::{Read, Cursor};
 use byteorder::{BigEndian, ReadBytesExt};
+use flate2::read::ZlibDecoder;
 
-use crate::nbt::NBT;
+use crate::nbt::{self, NBT};
 
 const SECTOR: usize = 1024 * 4;
 const ENTRIES: usize = 1024;
@@ -29,6 +30,7 @@ pub enum Error {
 pub struct Parser {
     length: usize,
     bytes:  Cursor<Vec<u8>>,
+    copy:   Vec<u8>,
 }
 
 pub struct Chunk {
@@ -48,7 +50,7 @@ struct Timestamp {
 }
 
 #[derive(Clone)]
-struct ChunkData {
+struct ChunkHeaderPair {
     location: Location,
     timestamp: Timestamp,
 }
@@ -71,18 +73,45 @@ impl Parser {
         Ok(timestamps)
     }
 
-    fn chunk(&mut self, data: &ChunkData) -> Result<Chunk, Error> {
-        println!("{:<3?} {:<8?}", data.location, data.timestamp);
+    fn chunk(&mut self, hdr_pair: &ChunkHeaderPair) -> Result<Chunk, Error> {
+        let Ok(raw_length) = self.bytes.read_u32::<BigEndian>() else {
+            return Err(Error::ChunkLength);
+        };
+        let length = raw_length as usize - 1;
+        let Ok(compression) = self.bytes.read_u8() else {
+            return Err(Error::Compression);
+        };
+
+        let mut nbt_data = Vec::new();
+        match compression {
+            ZLIB => {
+                let pos = self.bytes.position() as usize;
+                if let Err(e) = ZlibDecoder::new(&self.copy[pos..pos+length]).read_to_end(&mut nbt_data) {
+                    return Err(Error::Decompress(compression, e.to_string()));
+                };
+            }
+            _ => return Err(Error::CompressionType(compression)),
+        }
+
+        let mut nbts = Vec::new();
+        if let Err(e) = nbt::Parser::new(nbt_data).parse(&mut nbts) {
+            return Err(Error::ChunkNBT(e));
+        }
+
+        println!("root:\n{}", nbts.first().unwrap());
+
+        todo!();
+
         Ok(Chunk{ size: 0, root: NBT::default() })
     }
 }
 
-fn sort_chunk_data_by_location(data: Vec<ChunkData>) -> Result<Vec<ChunkData>, Error> {
+fn sort_chunk_data_by_location(data: Vec<ChunkHeaderPair>) -> Result<Vec<ChunkHeaderPair>, Error> {
     let mut chunk_data = Vec::new();
     for datum in data.into_iter() {
         let offset: usize = datum.location.offset.try_into().unwrap();
         if offset >= chunk_data.len() {
-            chunk_data.resize(offset+1, ChunkData::default());
+            chunk_data.resize(offset+1, ChunkHeaderPair::default());
         }
         chunk_data[offset] = datum;
     }
@@ -102,7 +131,7 @@ impl Parser {
 
         for (location, timestamp) in locations.into_iter().zip(timestamps.into_iter()) {
             if location.offset != 0 || location.sector != 0 {
-               chunk_data.push(ChunkData{ location, timestamp });
+               chunk_data.push(ChunkHeaderPair{ location, timestamp });
             }
         }
 
@@ -116,7 +145,8 @@ impl Parser {
     pub fn new(bytes: Vec<u8>) -> Self {
         Self {
             length: bytes.len(),
-            bytes:  Cursor::new(bytes),
+            bytes:  Cursor::new(bytes.clone()),
+            copy:   bytes.clone(),
         }
     }
 }
@@ -138,7 +168,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl Default for ChunkData {
+impl Default for ChunkHeaderPair {
     fn default() -> Self {
         Self {
             location: Location { offset: 0, sector: 0 },
