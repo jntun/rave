@@ -10,6 +10,12 @@ use crate::nbt::NBT;
 const SECTOR: usize = 1024 * 4;
 const ENTRIES: usize = 1024;
 
+const __GZIP: u8 = 1; /* "unused in practice" */
+const ZLIB  : u8 = 2;
+const NONE  : u8 = 3;
+const LZ4   : u8 = 4;
+const CUSTOM: u8 = 127;
+
 pub enum Error {
     InvalidLocation(String),
     CouldntSortChunks,
