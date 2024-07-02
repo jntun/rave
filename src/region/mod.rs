@@ -17,8 +17,13 @@ const LZ4   : u8 = 4;
 const CUSTOM: u8 = 127;
 
 pub enum Error {
-    InvalidLocation(String),
     CouldntSortChunks,
+    ChunkLength,
+    Compression,
+    CompressionType(u8),
+    Decompress(u8, String),
+    ChunkNBT(nbt::Error),
+    Unimplemented,
 }
 
 pub struct Parser {
@@ -122,7 +127,13 @@ impl Location {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            _ => todo!(),
+            Error::CouldntSortChunks => write!(f, "{}", "unable to sort chunks"),
+            Error::ChunkLength => write!(f, "{}", "unable to parse chunk length"),
+            Error::Compression => write!(f, "{}", "unable to parse compression"),
+            Error::CompressionType(compression) => write!(f, "invalid compression type: {}", compression),
+            Error::Decompress(compression, err) => write!(f, "failed decompression of type {}: {}", compression, err),
+            Error::ChunkNBT(err) => write!(f, "failed parsing chunk nbt: {}", err),
+            Error::Unimplemented => write!(f, "{}", "not implemented (yet :^)"),
         }
     }
 }
