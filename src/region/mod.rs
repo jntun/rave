@@ -2,14 +2,15 @@
 // Created by Justin Tunheim on 6/26/24
 //
 
-use std::io::{Read, Cursor};
+use std::io::{Read, Cursor, Seek, SeekFrom};
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::ZlibDecoder;
 
 use crate::nbt::{self, NBT};
 
-const SECTOR: usize = 1024 * 4;
-const ENTRIES: usize = 1024;
+const KIB: usize = 1024;
+const ENTRIES: usize = KIB;
+const BOUNDARY: usize = 4*KIB;
 
 const __GZIP: u8 = 1; /* "unused in practice" */
 const ZLIB  : u8 = 2;
@@ -34,7 +35,7 @@ pub struct Parser {
 }
 
 pub struct Chunk {
-    size: usize,
+    hdr_pair: ChunkHeaderPair,
     root: NBT,
 }
 
@@ -73,7 +74,7 @@ impl Parser {
         Ok(timestamps)
     }
 
-    fn chunk(&mut self, hdr_pair: &ChunkHeaderPair) -> Result<Chunk, Error> {
+    fn chunk(&mut self, hdr_pair: ChunkHeaderPair) -> Result<Chunk, Error> {
         let Ok(raw_length) = self.bytes.read_u32::<BigEndian>() else {
             return Err(Error::ChunkLength);
         };
@@ -83,9 +84,9 @@ impl Parser {
         };
 
         let mut nbt_data = Vec::new();
+        let pos = self.bytes.position() as usize;
         match compression {
             ZLIB => {
-                let pos = self.bytes.position() as usize;
                 if let Err(e) = ZlibDecoder::new(&self.copy[pos..pos+length]).read_to_end(&mut nbt_data) {
                     return Err(Error::Decompress(compression, e.to_string()));
                 };
@@ -93,16 +94,18 @@ impl Parser {
             _ => return Err(Error::CompressionType(compression)),
         }
 
-        let mut nbts = Vec::new();
-        if let Err(e) = nbt::Parser::new(nbt_data).parse(&mut nbts) {
+        let mut root = NBT::default();
+        if let Err(e) = nbt::Parser::new(nbt_data).parse(&mut root) {
             return Err(Error::ChunkNBT(e));
         }
 
-        println!("root:\n{}", nbts.first().unwrap());
+        const next_chunk: i64 = {
+            const bytes_read: i64 = 5; // We read the length & compression type but the cursor isn't used to parse the NBT
+            BOUNDARY as i64 - bytes_read
+        };
+        self.bytes.seek(SeekFrom::Current(next_chunk));
 
-        todo!();
-
-        Ok(Chunk{ size: 0, root: NBT::default() })
+        Ok(Chunk{ hdr_pair, root: root })
     }
 }
 
@@ -121,7 +124,7 @@ fn sort_chunk_data_by_location(data: Vec<ChunkHeaderPair>) -> Result<Vec<ChunkHe
 }
 
 impl Parser {
-    pub fn parse(&mut self) -> Result<NBT, Error> {
+    pub fn parse(&mut self) -> Result<Vec<Chunk>, Error> {
         let locations = self.locations()?;
         let timestamps = self.timestamps()?;
 
@@ -137,9 +140,9 @@ impl Parser {
 
         chunk_data = sort_chunk_data_by_location(chunk_data)?;
         for data in chunk_data.into_iter() {
-            chunks.push(self.chunk(&data)?);
+            chunks.push(self.chunk(data)?);
         }
-        Ok(nbt)
+        Ok(chunks)
     }
 
     pub fn new(bytes: Vec<u8>) -> Self {
