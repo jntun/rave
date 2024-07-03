@@ -160,7 +160,7 @@ impl std::fmt::Display for Error {
             Error::CouldntSortChunks => write!(f, "{}", "unable to sort chunks"),
             Error::ChunkLength => write!(f, "{}", "unable to parse chunk length"),
             Error::Compression => write!(f, "{}", "unable to parse compression"),
-            Error::CompressionType(compression) => write!(f, "invalid compression type: {}", compression),
+            Error::CompressionType(compression) => write!(f, "invalid compression type: {:#02x}", compression),
             Error::Decompress(compression, err) => write!(f, "failed decompression of type {}: {}", compression, err),
             Error::ChunkNBT(err) => write!(f, "failed parsing chunk nbt: {}", err),
             Error::Unimplemented => write!(f, "{}", "not implemented (yet :^)"),
