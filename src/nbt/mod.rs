@@ -61,7 +61,6 @@ pub struct NBT {
 }
 
 pub enum Error {
-    MultipleRootNodes,
     EndOfBytes,
     InvalidType,
     NegativeLength(i32),
@@ -258,16 +257,14 @@ impl Parser {
 
 impl Parser {
     pub fn parse(&mut self, root: &mut NBT) -> Result<(), Error> {
-        let mut nbts = Vec::new();
-        while !self.at_end() {
-            match self.consume() {
-                Ok(nbt) => nbts.push(nbt),
-                Err(e)  => return Err(e),
+        match self.consume() {
+            Ok(nbt) => {
+                root.name    = nbt.name;
+                root.payload = nbt.payload;
             }
-        }
-        if nbts.len() > 1 {
-            return Err(Error::MultipleRootNodes);
-        }
+            Err(e)  => return Err(e),
+        };
+        
         Ok(())
     }
 
@@ -347,7 +344,6 @@ impl std::fmt::Display for NBTData {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Error::MultipleRootNodes => write!(f, "{}", "Parse resulted in multiple root nodes which isn't valid NBT per-spec."),
             Error::EndOfBytes => write!(f, "{}", "Reached end of byte sequence while attempting to parse!"),
             Error::InvalidType => write!(f, "{}", "Encountered an invalid opcode byte sequence."),
             Error::InvalidListType(tag_id) => write!(f, "List cannot contain elements of type '{}'.", tag_id),
