@@ -24,7 +24,7 @@ pub struct TAGString {
 
 pub struct TAGList {
     id:         TAGByte,
-    pub tags:   Vec<NBTData>,
+    pub tags:   Vec<Payload>,
 }
 
 pub struct TAGCompound {
@@ -39,7 +39,7 @@ pub struct TAGLArray {
     pub longs: Vec<TAGLong>,
 }
 
-pub enum NBTData {
+pub enum Payload {
     End,
     Byte(TAGByte),
     Short(TAGShort),
@@ -57,7 +57,7 @@ pub enum NBTData {
 
 pub struct NBT {
     pub name:    TAGString,
-    pub payload: NBTData,
+    pub payload: Payload,
 }
 
 pub enum Error {
@@ -151,18 +151,18 @@ impl Parser {
         let mut tags = Vec::new();
         for _ in 0..length {
             match id {
-                01 => tags.push(NBTData::Byte(self.nbt_byte()?)),
-                02 => tags.push(NBTData::Short(self.nbt_short()?)),
-                03 => tags.push(NBTData::Int(self.nbt_int()?)),
-                04 => tags.push(NBTData::Long(self.nbt_long()?)),
-                05 => tags.push(NBTData::Float(self.nbt_float()?)),
-                06 => tags.push(NBTData::Double(self.nbt_double()?)),
-                07 => tags.push(NBTData::BArray(self.nbt_barray()?)),
-                08 => tags.push(NBTData::String(self.nbt_string()?)),
-                09 => tags.push(NBTData::List(self.nbt_list()?)),
-                10 => tags.push(NBTData::Compound(self.nbt_compound()?)),
-                11 => tags.push(NBTData::IArray(self.nbt_iarray()?)),
-                12 => tags.push(NBTData::LArray(self.nbt_larray()?)),
+                01 => tags.push(Payload::Byte(self.nbt_byte()?)),
+                02 => tags.push(Payload::Short(self.nbt_short()?)),
+                03 => tags.push(Payload::Int(self.nbt_int()?)),
+                04 => tags.push(Payload::Long(self.nbt_long()?)),
+                05 => tags.push(Payload::Float(self.nbt_float()?)),
+                06 => tags.push(Payload::Double(self.nbt_double()?)),
+                07 => tags.push(Payload::BArray(self.nbt_barray()?)),
+                08 => tags.push(Payload::String(self.nbt_string()?)),
+                09 => tags.push(Payload::List(self.nbt_list()?)),
+                10 => tags.push(Payload::Compound(self.nbt_compound()?)),
+                11 => tags.push(Payload::IArray(self.nbt_iarray()?)),
+                12 => tags.push(Payload::LArray(self.nbt_larray()?)),
                 _ => return Err(Error::InvalidListType(id)),
             }
         }
@@ -175,7 +175,7 @@ impl Parser {
             let tag = self.consume()?;
             compound.tags.push(tag);
             match compound.tags.last().unwrap().payload {
-                NBTData::End => return Ok(compound),
+                Payload::End => return Ok(compound),
                 _ => (),
             }
         }
@@ -213,7 +213,7 @@ impl Parser {
     }
 
     fn consume(&mut self) -> Result<NBT, Error> {
-        let mut data: NBTData = NBTData::End;
+        let mut data: Payload = Payload::End;
         let Ok(byte) = self.nbt_byte() else {
             return Err(Error::InvalidType);
         };
@@ -231,18 +231,18 @@ impl Parser {
 
         match byte {
             0  => (),
-            1  => data = NBTData::Byte(self.nbt_byte()?),
-            2  => data = NBTData::Short(self.nbt_short()?),
-            3  => data = NBTData::Int(self.nbt_int()?),
-            4  => data = NBTData::Long(self.nbt_long()?),
-            5  => data = NBTData::Float(self.nbt_float()?),
-            6  => data = NBTData::Double(self.nbt_double()?),
-            7  => data = NBTData::BArray(self.nbt_barray()?),
-            8  => data = NBTData::String(self.nbt_string()?),
-            9  => data = NBTData::List(self.nbt_list()?),
-            10 => data = NBTData::Compound(self.nbt_compound()?),
-            11 => data = NBTData::IArray(self.nbt_iarray()?),
-            12 => data = NBTData::LArray(self.nbt_larray()?),
+            1  => data = Payload::Byte(self.nbt_byte()?),
+            2  => data = Payload::Short(self.nbt_short()?),
+            3  => data = Payload::Int(self.nbt_int()?),
+            4  => data = Payload::Long(self.nbt_long()?),
+            5  => data = Payload::Float(self.nbt_float()?),
+            6  => data = Payload::Double(self.nbt_double()?),
+            7  => data = Payload::BArray(self.nbt_barray()?),
+            8  => data = Payload::String(self.nbt_string()?),
+            9  => data = Payload::List(self.nbt_list()?),
+            10 => data = Payload::Compound(self.nbt_compound()?),
+            11 => data = Payload::IArray(self.nbt_iarray()?),
+            12 => data = Payload::LArray(self.nbt_larray()?),
             _ => return Err(Error::InvalidByteSequence),
         };
 
@@ -282,7 +282,7 @@ impl Default for NBT {
     fn default() -> Self {
         Self {
             name:    TAGString{str: Vec::new()},
-            payload: NBTData::End,
+            payload: Payload::End,
         }
     }
 }
@@ -299,40 +299,40 @@ impl std::fmt::Display for TAGString {
     }
 }
 
-impl std::fmt::Display for NBTData {
+impl std::fmt::Display for Payload {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            NBTData::End => write!(f, "{}", "<00> End {}"),
-            NBTData::Byte(b) => write!(f, "<01> Byte {}", b),
-            NBTData::Short(s) => write!(f, "<02> Short {}", s),
-            NBTData::Int(i) => write!(f, "<03> Int {}", i),
-            NBTData::Long(l) => write!(f, "<04> Long {}", l),
-            NBTData::Float(fl) => write!(f, "<05> Float {}", fl),
-            NBTData::Double(d) => write!(f, "<06> Double {}", d),
-            NBTData::BArray(array) => write!(f, "<07> BArray {}", String::from_utf8(array.body.clone()).unwrap()),
-            NBTData::String(str) => write!(f, "<08> String {:?}", String::from_utf8(str.str.clone()).unwrap()),
-            NBTData::List(list) => {
+            Payload::End => write!(f, "{}", "<00> End {}"),
+            Payload::Byte(b) => write!(f, "<01> Byte {}", b),
+            Payload::Short(s) => write!(f, "<02> Short {}", s),
+            Payload::Int(i) => write!(f, "<03> Int {}", i),
+            Payload::Long(l) => write!(f, "<04> Long {}", l),
+            Payload::Float(fl) => write!(f, "<05> Float {}", fl),
+            Payload::Double(d) => write!(f, "<06> Double {}", d),
+            Payload::BArray(array) => write!(f, "<07> BArray {}", String::from_utf8(array.body.clone()).unwrap()),
+            Payload::String(str) => write!(f, "<08> String {:?}", String::from_utf8(str.str.clone()).unwrap()),
+            Payload::List(list) => {
                 write!(f, "<09> List {} [", list.tags.len())?;
                 for tag in list.tags.iter() {
                     write!(f, "\n\t{}", tag)?;
                 }
                 write!(f, "\n\t]")
             }
-            NBTData::Compound(compound) => {
+            Payload::Compound(compound) => {
                 write!(f, "{}", "<10> Compound [\n")?;
                 for tag in compound.tags.iter() {
                     write!(f, "\n\t{}: {}", tag.name, tag.payload)?;
                 }
                 write!(f, "\n{}", "]")
             }
-            NBTData::IArray(iarray) => {
+            Payload::IArray(iarray) => {
                 write!(f, "{} {}\n\t{}", "<11> IArray ", iarray.ints.len(), "( ", )?;
                 for int in iarray.ints.iter() {
                     write!(f, "{}, ", int)?;
                 }
                 write!(f, "{}", ")")
             }
-            NBTData::LArray(larray) => {
+            Payload::LArray(larray) => {
                 write!(f, "{}\n\t{}", "<12> LArray", "( ")?;
                 for long in larray.longs.iter() {
                     write!(f, "{}, ", long)?;
