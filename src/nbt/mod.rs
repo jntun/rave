@@ -161,6 +161,8 @@ impl Parser {
                 08 => tags.push(NBTData::String(self.nbt_string()?)),
                 09 => tags.push(NBTData::List(self.nbt_list()?)),
                 10 => tags.push(NBTData::Compound(self.nbt_compound()?)),
+                11 => tags.push(NBTData::IArray(self.nbt_iarray()?)),
+                12 => tags.push(NBTData::LArray(self.nbt_larray()?)),
                 _ => return Err(Error::InvalidListType(id)),
             }
         }
