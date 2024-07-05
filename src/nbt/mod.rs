@@ -5,7 +5,8 @@
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
 
-const MAX_DEPTH_NEST: i32 = 512;
+const MAX_ELEMENTS:   usize = 2_147_483_647;
+const MAX_NEST_DEPTH: usize = 512;
 
 pub type TAGByte = u8;
 pub type TAGShort = i16;
@@ -64,7 +65,8 @@ pub enum Error {
     EndOfBytes,
     InvalidType,
     NegativeLength(i32),
-    ExceedsMaxNestingDepth(i32),
+    NestingDepth(String),
+    ElementLimit,
     InvalidListType(TAGByte),
     InvalidByteSequence,
     TAGString(String),
@@ -74,7 +76,8 @@ pub enum Error {
 
 pub struct Parser {
     length: usize,
-    bytes: Cursor<Vec<u8>>,
+    nest:   usize,
+    bytes:  Cursor<Vec<u8>>,
 }
 
 impl Parser {
@@ -143,11 +146,8 @@ impl Parser {
         let id = self.nbt_byte()?;
         let length = self.nbt_int()?;
         self.check_length(length)?;
-
-        if length > MAX_DEPTH_NEST as i32 {
-            return Err(Error::ExceedsMaxNestingDepth(length));
-        }
-
+        self.nest(String::from("List"))?;
+        
         let mut tags = Vec::new();
         for _ in 0..length {
             match id {
@@ -166,20 +166,26 @@ impl Parser {
                 _ => return Err(Error::InvalidListType(id)),
             }
         }
+
+        self.nest -= 1;
         Ok(TAGList{id, tags})
     }
 
+
     fn nbt_compound(&mut self) -> Result<TAGCompound, Error> {
         let mut compound = TAGCompound{tags: Vec::new()};
-        for _ in 0..MAX_DEPTH_NEST {
+
+        self.nest(String::from("Compound"))?;
+        for _ in 0..MAX_ELEMENTS {
             let tag = self.consume()?;
             compound.tags.push(tag);
             match compound.tags.last().unwrap().payload {
-                Payload::End => return Ok(compound),
+                Payload::End => { self.nest -= 1; return Ok(compound) },
                 _ => (),
             }
         }
-        Err(Error::ExceedsMaxNestingDepth(513))
+        
+        Err(Error::ElementLimit)
     }
 
     fn nbt_iarray(&mut self) -> Result<TAGIArray, Error> {
@@ -202,16 +208,6 @@ impl Parser {
         Ok(TAGLArray{longs})
     }
 
-    fn check_length(&self, length: TAGInt) -> Result<(), Error> {
-        if length < 0 {
-            return Err(Error::NegativeLength(length))
-        }
-        if length >= self.length as i32 {
-            return Err(Error::EndOfBytes);
-        }
-        Ok(())
-    }
-
     fn consume(&mut self) -> Result<NBT, Error> {
         let mut data: Payload = Payload::End;
         let Ok(byte) = self.nbt_byte() else {
@@ -228,6 +224,8 @@ impl Parser {
             },
             _ => { return Err(Error::InvalidByteSequence); }
         };
+
+        println!("[xxx] doing: {:#02x}", byte);
 
         match byte {
             0  => (),
@@ -249,6 +247,27 @@ impl Parser {
         return Ok(NBT{name, payload: data});
     }
 
+    fn check_length(&self, length: TAGInt) -> Result<(), Error> {
+        if length < 0 {
+            return Err(Error::NegativeLength(length))
+        }
+        if length >= self.length as i32 {
+            return Err(Error::EndOfBytes);
+        }
+        if length >= MAX_ELEMENTS as i32 {
+            return Err(Error::ElementLimit)
+        }
+        Ok(())
+    }
+
+    fn nest(&mut self, from: String) -> Result<(), Error> {
+        self.nest += 1;
+        if self.nest == MAX_NEST_DEPTH {
+            return Err(Error::NestingDepth(from));
+        }
+        Ok(())
+    }
+    
     fn at_end(&self) -> bool {
         if self.bytes.position() as usize == self.length {
             return true;
@@ -273,6 +292,7 @@ impl Parser {
     pub fn new(bytes: Vec<u8>) -> Self {
         Self { 
             length: bytes.len(),
+            nest:   0,
             bytes: Cursor::new(bytes), 
         }
     }
@@ -351,7 +371,8 @@ impl std::fmt::Display for Error {
             Error::InvalidListType(tag_id) => write!(f, "List cannot contain elements of type '{}'.", tag_id),
             Error::InvalidByteSequence => write!(f, "Reached unparseable byte sequence."),
             Error::NegativeLength(length) => write!(f, "{} is an invalid length due to being negative.", length), 
-            Error::ExceedsMaxNestingDepth(length) => write!(f, "Tag with nested tags exceeds maximum allowed nesting depth of {}. Length of tag: {}", MAX_DEPTH_NEST, length),
+            Error::NestingDepth(tag) => write!(f, "{} tag exceeds maximum allowed nesting depth of {}.", tag, MAX_NEST_DEPTH),
+            Error::ElementLimit => write!(f, "Tag exceeds maximum allowed element count of {}.", MAX_ELEMENTS),
             Error::TAGString(msg) => write!(f, "{}", msg),
             Error::TAGShort(msg) => write!(f, "{}", msg),
             Error::TAGByte => write!(f, "{}", "Unable to read a NBT byte value (this should never happen...)."),
