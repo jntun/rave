@@ -109,6 +109,38 @@ impl Parser {
     }
 }
 
+
+impl Parser {
+    pub fn parse(&mut self) -> Result<Vec<Chunk>, Error> {
+        let locations = self.locations()?;
+        let timestamps = self.timestamps()?;
+
+        let mut chunk_data = Vec::new();
+        let mut chunks = Vec::new();
+
+        for (location, timestamp) in locations.into_iter().zip(timestamps.into_iter()) {
+            if location.offset != 0 || location.sector != 0 {
+                chunk_data.push(ChunkHeaderPair{ location, timestamp });
+            }
+        }
+
+        chunk_data = sort_chunk_data_by_location(chunk_data)?;
+        for data in chunk_data.into_iter() {
+            chunks.push(self.chunk(data)?);
+        }
+
+        Ok(chunks)
+    }
+
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Self {
+            length: bytes.len(),
+            bytes:  Cursor::new(bytes.clone()),
+            copy:   bytes.clone(),
+        }
+    }
+}
+
 fn sort_chunk_data_by_location(data: Vec<ChunkHeaderPair>) -> Result<Vec<ChunkHeaderPair>, Error> {
     let mut chunk_data = Vec::new();
     for datum in data.into_iter() {
@@ -123,34 +155,9 @@ fn sort_chunk_data_by_location(data: Vec<ChunkHeaderPair>) -> Result<Vec<ChunkHe
     Ok(chunk_data)
 }
 
-impl Parser {
-    pub fn parse(&mut self) -> Result<Vec<Chunk>, Error> {
-        let locations = self.locations()?;
-        let timestamps = self.timestamps()?;
-
-        let mut nbt: NBT = NBT::default();
-        let mut chunk_data = Vec::new();
-        let mut chunks = Vec::new();
-
-        for (location, timestamp) in locations.into_iter().zip(timestamps.into_iter()) {
-            if location.offset != 0 || location.sector != 0 {
-               chunk_data.push(ChunkHeaderPair{ location, timestamp });
-            }
-        }
-
-        chunk_data = sort_chunk_data_by_location(chunk_data)?;
-        for data in chunk_data.into_iter() {
-            chunks.push(self.chunk(data)?);
-        }
-        Ok(chunks)
-    }
-
-    pub fn new(bytes: Vec<u8>) -> Self {
-        Self {
-            length: bytes.len(),
-            bytes:  Cursor::new(bytes.clone()),
-            copy:   bytes.clone(),
-        }
+impl Chunk {
+    pub fn nbt(&self) -> &NBT {
+        &self.root
     }
 }
 
