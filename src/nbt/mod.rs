@@ -216,7 +216,7 @@ impl Parser {
 
         let name = match byte {
             0 => { TAGString{str: Vec::new()} },
-            1..12 => {
+            1..13 => {
                 match self.nbt_string() {
                     Ok(name) => name,
                     Err(e)   => return Err(e),
