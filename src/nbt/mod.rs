@@ -68,7 +68,7 @@ pub enum Error {
     NestingDepth(String),
     ElementLimit,
     InvalidListType(TAGByte),
-    InvalidByteSequence,
+    InvalidByteSequence(u64, u8),
     TAGString(String),
     TAGShort(String),
     TAGByte,
@@ -222,10 +222,8 @@ impl Parser {
                     Err(e)   => return Err(e),
                 }
             },
-            _ => { return Err(Error::InvalidByteSequence); }
+            _ => { return Err(Error::InvalidByteSequence(self.bytes.position(), byte)); }
         };
-
-        println!("[xxx] doing: {:#02x}", byte);
 
         match byte {
             0  => (),
@@ -241,7 +239,7 @@ impl Parser {
             10 => data = Payload::Compound(self.nbt_compound()?),
             11 => data = Payload::IArray(self.nbt_iarray()?),
             12 => data = Payload::LArray(self.nbt_larray()?),
-            _ => return Err(Error::InvalidByteSequence),
+            _ => return Err(Error::InvalidByteSequence(self.bytes.position(), byte)),
         };
 
         return Ok(NBT{name, payload: data});
@@ -369,7 +367,7 @@ impl std::fmt::Display for Error {
             Error::EndOfBytes => write!(f, "{}", "Reached end of byte sequence while attempting to parse!"),
             Error::InvalidType => write!(f, "{}", "Encountered an invalid opcode byte sequence."),
             Error::InvalidListType(tag_id) => write!(f, "List cannot contain elements of type '{}'.", tag_id),
-            Error::InvalidByteSequence => write!(f, "Reached unparseable byte sequence."),
+            Error::InvalidByteSequence(pos, byte) => write!(f, "Reached unparseable byte sequence at {}: '{:#02x}'.", pos, byte),
             Error::NegativeLength(length) => write!(f, "{} is an invalid length due to being negative.", length), 
             Error::NestingDepth(tag) => write!(f, "{} tag exceeds maximum allowed nesting depth of {}.", tag, MAX_NEST_DEPTH),
             Error::ElementLimit => write!(f, "Tag exceeds maximum allowed element count of {}.", MAX_ELEMENTS),
