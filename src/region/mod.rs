@@ -5,6 +5,7 @@
 use std::io::{Read, Cursor, Seek, SeekFrom};
 use byteorder::{BigEndian, ReadBytesExt};
 use flate2::read::ZlibDecoder;
+use colored::*;
 
 use crate::nbt::{self, NBT};
 
@@ -26,6 +27,19 @@ pub enum Error {
     Decompress(u8, String),
     ChunkNBT(nbt::Error),
     Unimplemented,
+}
+
+#[derive(Clone, Copy)]
+pub struct Responsible {
+    source: bool,
+    addr: usize,
+    byte: u8,
+}
+
+pub struct Report {
+    err: Error,
+    pos: u64,
+    responsible: [Responsible; 20],
 }
 
 pub struct Parser {
@@ -111,9 +125,15 @@ impl Parser {
 
 
 impl Parser {
-    pub fn parse(&mut self) -> Result<Vec<Chunk>, Error> {
-        let locations = self.locations()?;
-        let timestamps = self.timestamps()?;
+    pub fn parse(&mut self) -> Result<Vec<Chunk>, Report> {
+        let locations = match self.locations() {
+            Ok(locs) => locs,
+            Err(e)   => return Err(Report::new(e, &mut self.bytes.clone())),
+        };
+        let timestamps = match self.timestamps() {
+            Ok(times) => times,
+            Err(e)    => return Err(Report::new(e, &mut self.bytes.clone())),
+        };
 
         let mut chunk_data = Vec::new();
         let mut chunks = Vec::new();
@@ -124,9 +144,15 @@ impl Parser {
             }
         }
 
-        chunk_data = sort_chunk_data_by_location(chunk_data)?;
+        chunk_data = match sort_chunk_data_by_location(chunk_data) {
+            Ok(data) => data,
+            Err(e)   => return Err(Report::new(e, &mut self.bytes.clone())),
+        };
         for data in chunk_data.into_iter() {
-            chunks.push(self.chunk(data)?);
+            match self.chunk(data) {
+                Ok(chunk) => chunks.push(chunk),
+                Err(e)    => return Err(Report::new(e, &mut self.bytes.clone())),
+            }
         }
 
         Ok(chunks)
@@ -161,8 +187,6 @@ impl Chunk {
     }
 }
 
-impl Location {
-}
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -175,6 +199,50 @@ impl std::fmt::Display for Error {
             Error::ChunkNBT(err) => write!(f, "failed parsing chunk nbt: {}", err),
             Error::Unimplemented => write!(f, "{}", "not implemented (yet :^)"),
         }
+    }
+}
+
+impl Report {
+    pub fn new(err: Error, bytes: &mut Cursor<Vec<u8>>) -> Self {
+        /* FIXME:
+        *     We need to know the size of what we just tried to scan
+        *     so we can calculate how far back the actual source of the error lies.
+        *     For now, we just assume it was the last byte pulled out from the cursor.
+        *
+        *                                   vv */
+        let start = bytes.position().clone()-1;
+
+        match start {
+            0..10 => bytes.seek(SeekFrom::Start(0)),
+            _     => bytes.seek(SeekFrom::Current(-10)),
+        };
+        let mut blame: [Responsible; 20] = [Responsible{ source: false, addr: 0, byte: 0} ; 20];
+        for responsible in blame.iter_mut() {
+            responsible.addr = bytes.position() as usize;
+            responsible.byte = bytes.read_u8().unwrap();
+            if responsible.addr == start as usize {
+                responsible.source = true;
+            }
+        }
+        Self { err: err, pos: start, responsible: blame }
+    }
+}
+
+impl std::fmt::Display for Report {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for (i, responsible) in self.responsible.iter().enumerate() {
+            if responsible.source {
+                let out = format!("{:#x} {:#02x}\n", responsible.addr, responsible.byte);
+                write!(f, "{}", out.green())?;
+            } else {
+                write!(f, "{:#x} {:#02x}\n", responsible.addr, responsible.byte)?;
+            }
+        }
+        write!(f, "\nerror occured at byte {} ({:#02x}):\n\t{}",
+                self.pos,
+                self.pos,
+                self.err
+        )
     }
 }
 
