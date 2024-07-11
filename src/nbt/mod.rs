@@ -327,7 +327,17 @@ impl std::fmt::Display for Payload {
             Payload::Long(l) => write!(f, "<04> Long {}", l),
             Payload::Float(fl) => write!(f, "<05> Float {}", fl),
             Payload::Double(d) => write!(f, "<06> Double {}", d),
-            Payload::BArray(array) => write!(f, "<07> BArray {}", String::from_utf8(array.body.clone()).unwrap()),
+            Payload::BArray(array) => {
+                write!(f, "<07> BArray\n")?;
+                let delim = 4;
+                for (i, byte) in array.body.iter().enumerate() {
+                    write!(f, "\t{:#02x}", byte)?;
+                    if i != 0 && i % delim == 0 {
+                        write!(f, "\n");
+                    }
+                }
+                write!(f, "")
+            }
             Payload::String(str) => write!(f, "<08> String {:?}", String::from_utf8(str.str.clone()).unwrap()),
             Payload::List(list) => {
                 write!(f, "<09> List {} [", list.tags.len())?;
