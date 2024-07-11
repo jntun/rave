@@ -3,35 +3,51 @@
 //
 
 use std::io::Read;
-use flate2::read::GzDecoder;
 
 mod nbt;
+mod region;
 
-pub const CODENAME: &str = "CAVE";
-pub const ROOT_DIR: &str = "/Users/justin/Documents/rave/";
-pub const SAVE_DIR: &str = "static/01/";
+const CODENAME: &str = "CAVE";
+const ROOT_DIR: &str = "/Users/justin/Documents/rave/";
+const WORKING_DIR: &str = "static/01/region/";
 
-fn full_path() -> String {
-    format!("{}{}", ROOT_DIR, SAVE_DIR)
+fn repeat_char(c: char, i: usize) -> String {
+    let mut out = String::new();
+    for _ in 0..i {
+        out.push(c);
+    }
+    out
+}
+
+fn working_path() -> String {
+    format!("{}{}", ROOT_DIR, WORKING_DIR)
 }
 
 fn main() {
-    let Ok(raw_data) = std::fs::read(format!("{}level.dat", full_path())) else {
-        panic!("Could not read level.dat");
-    };
+    for entry in std::fs::read_dir(working_path()).unwrap() {
+        let Ok(mca) = entry else {
+            eprintln!("Internal error resolving directory entry in '{}'", working_path());
+            return;
+        };
+        let path = String::from(mca.path().to_str().unwrap());
+        let raw_data = match std::fs::read(path.clone()) {
+            Ok(raw) => raw,
+            Err(e) => {
+                eprintln!("Could not open '{}':\n\t{}", working_path(), e);
+                return;
+            }
+        };
+        print!("{} doing '{}' {}", repeat_char('-', 10), path, repeat_char('-', 10));
 
-    let mut data = Vec::new();
-    let Ok(_) = GzDecoder::new(&raw_data[..]).read_to_end(&mut data) else {
-        panic!("Unable to decode data!");
-    };
-
-    let mut nbts = Vec::new();
-    if let Err(e) = nbt::Parser::new(data).parse(&mut nbts) {
-        println!("this is not working:\n\t{}", e);
-        return;
+        let region = match region::Parser::new(raw_data).parse() {
+            Ok(region) => region,
+            Err(e) => {
+                eprintln!("Something went wrong:\n\t{}", e);
+                return;
+            }
+        };
+        println!(" - done");
     }
-
-    println!("root: {}", nbts.first().unwrap());
 
     println!("done");
 }
