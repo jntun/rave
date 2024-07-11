@@ -120,6 +120,9 @@ impl Parser {
 
 impl Parser {
     pub fn parse(&mut self) -> Result<Vec<Chunk>, Report> {
+        if self.copy.len() == 0 {
+            return Ok(Vec::new())
+        }
         let locations = match self.locations() {
             Ok(locs) => locs,
             Err(e)   => return Err(Report::new(e, &mut self.bytes.clone())),
