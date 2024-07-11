@@ -64,7 +64,7 @@ struct Timestamp {
     entry: i32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ChunkHeaderPair {
     location: Location,
     timestamp: Timestamp,
@@ -113,12 +113,6 @@ impl Parser {
             return Err(Error::ChunkNBT(e));
         }
 
-        const next_chunk: i64 = {
-            const bytes_read: i64 = 5; // We read the length & compression type but the cursor isn't used to parse the NBT
-            BOUNDARY as i64 - bytes_read
-        };
-        self.bytes.seek(SeekFrom::Current(next_chunk));
-
         Ok(Chunk{ hdr_pair, root: root })
     }
 }
@@ -149,6 +143,8 @@ impl Parser {
             Err(e)   => return Err(Report::new(e, &mut self.bytes.clone())),
         };
         for data in chunk_data.into_iter() {
+            let offset = data.location.offset as usize * BOUNDARY;
+            self.bytes.seek(SeekFrom::Start(offset as u64)).expect("Invalid chunk offset");
             match self.chunk(data) {
                 Ok(chunk) => chunks.push(chunk),
                 Err(e)    => return Err(Report::new(e, &mut self.bytes.clone())),
