@@ -139,7 +139,7 @@ impl Parser {
         let mut chunks = Vec::new();
 
         for (location, timestamp) in locations.into_iter().zip(timestamps.into_iter()) {
-            if location.offset != 0 || location.sector != 0 {
+            if location.offset != 0 && location.sector != 0 {
                 chunk_data.push(ChunkHeaderPair{ location, timestamp });
             }
         }
