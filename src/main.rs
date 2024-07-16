@@ -2,52 +2,63 @@
 // Created by Justin Tunheim on 6/20/24
 //
 
-use std::io::Read;
+use config::Configuration;
 
 mod nbt;
 mod region;
+mod config;
 
-const CODENAME: &str = "CAVE";
+use config::{Value, Scope, Command};
+
+const CODENAME: &str = "RAVE";
 const ROOT_DIR: &str = "/Users/justin/Documents/rave/";
 const WORKING_DIR: &str = "static/01/region/";
 
-fn repeat_char(c: char, i: usize) -> String {
-    let mut out = String::new();
-    for _ in 0..i {
-        out.push(c);
-    }
-    out
+fn usage() -> String {
+    format!("Usage: {} [OPTIONS] [COMMAND]", CODENAME.to_lowercase())
 }
 
-fn working_path() -> String {
-    format!("{}{}", ROOT_DIR, WORKING_DIR)
+fn working_path() -> Option<String> {
+    match std::env::consts::OS {
+        "macos"   => Some(String::from("~/Library/Application Support/minecraft/saves")),
+        "windows" => Some(String::from("%appdata%/.minecraft/saves/")),
+        _         => None,
+    }
 }
 
 fn main() {
-    for entry in std::fs::read_dir(working_path()).unwrap() {
-        let Ok(mca) = entry else {
-            eprintln!("Internal error resolving directory entry in '{}'", working_path());
-            return;
-        };
-        let path = String::from(mca.path().to_str().unwrap());
-        let raw_data = match std::fs::read(path.clone()) {
-            Ok(raw) => raw,
-            Err(e) => {
-                eprintln!("Could not open '{}':\n\t{}", working_path(), e);
-                return;
-            }
-        };
-        print!("{} doing '{}' {}", repeat_char('-', 10), path, repeat_char('-', 10));
+    let mut config = Configuration {
+        command: Value::Default(Command::List(Scope::All)),
+        save_root: Value::Default(working_path().expect("compatible operating system.")),
+    };
 
-        let region = match region::Parser::new(raw_data).parse() {
-            Ok(region) => region,
-            Err(e) => {
-                eprintln!("Something went wrong:\n\t{}", e);
-                return;
-            }
+    let mut args = std::env::args().enumerate().skip(1);
+
+    loop {
+        let (i, arg) = match args.next() {
+            Some((i, arg)) => (i, arg),
+            None => break,
         };
-        println!(" - done");
+        match arg.as_str() {
+            "-r" | "--root" => {
+                let Some(dir) = args.next() else {
+                    return println!("--root or -r argument requires a path parameter e.g 'rave --root ~/my/rave/save/'");
+                };
+                config.save_root = Value::User(dir.1);
+            }
+            "list" | "l" => {
+                let Some(peek) = std::env::args().nth(i+1) else {
+                    continue;
+                };
+                match peek.as_str() {
+                    "region" | "r" => {
+                        let _ = args.next().expect("argument variables don't match? This shouldn't be possible, ever.");
+                        config.command = Value::User(Command::List(Scope::Region));
+                    },
+                    _ => return println!("unrecognized parameter '{}' given to list command. e.g 'rave list < r | region >'", peek),
+                }
+            },
+            _ => return println!("{}\n\tsupplied unknown argument {}.", usage(), arg),
+        }
     }
-
-    println!("done");
 }
