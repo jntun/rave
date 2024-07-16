@@ -11,8 +11,6 @@ mod config;
 use config::{Value, Scope, Command};
 
 const CODENAME: &str = "RAVE";
-const ROOT_DIR: &str = "/Users/justin/Documents/rave/";
-const WORKING_DIR: &str = "static/01/region/";
 
 fn usage() -> String {
     format!("Usage: {} [OPTIONS] [COMMAND]", CODENAME.to_lowercase())
