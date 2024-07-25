@@ -8,7 +8,7 @@ mod nbt;
 mod region;
 mod config;
 
-use config::{Value, Scope, Command};
+use config::{Value, Scope, Command, Method};
 
 const CODENAME: &str = "RAVE";
 
@@ -26,8 +26,9 @@ fn working_path() -> Option<String> {
 
 fn main() {
     let mut config = Configuration {
-        command: Value::Default(Command::List(Scope::All)),
+        command:   Value::Default(Command::List(Scope::All)),
         save_root: Value::Default(working_path().expect("compatible operating system.")),
+        index:     Value::None,
     };
 
     let mut args = std::env::args().enumerate().skip(1);
@@ -38,12 +39,17 @@ fn main() {
             None => break,
         };
         match arg.as_str() {
+            "-i" | "--index" => {
+                let Some(idx_iter) = args.next() else {
+                    return println!("--index or -i argument requires a unsigned integer paramater e.g 'rave search \"minecraft:air\" --index 0");
+                };
+            },
             "-r" | "--root" => {
                 let Some(dir) = args.next() else {
                     return println!("--root or -r argument requires a path parameter e.g 'rave --root ~/my/rave/save/'");
                 };
                 config.save_root = Value::User(dir.1);
-            }
+            },
             "list" | "l" => {
                 let Some(peek) = std::env::args().nth(i+1) else {
                     continue;
@@ -55,6 +61,12 @@ fn main() {
                     },
                     _ => return println!("unrecognized parameter '{}' given to list command. e.g 'rave list < r | region >'", peek),
                 }
+            },
+            "search" | "s" => {
+                let Some(name) = args.next() else {
+                    return println!("please provide the 'search' or 's' command with a name to search for. e.g 'rave search | s < name >'");
+                };
+                config.command = Value::User(Command::Search(Method::Name(name.1)));
             },
             _ => return println!("{}\n\tsupplied unknown argument {}.", usage(), arg),
         }
