@@ -6,6 +6,7 @@ use config::Configuration;
 
 mod nbt;
 mod region;
+mod engine;
 mod config;
 
 use config::{Value, Scope, Command, Method};
@@ -70,5 +71,9 @@ fn main() {
             },
             _ => return println!("{}\n\tsupplied unknown argument {}.", usage(), arg),
         }
+    }
+
+    if let Err(e) = engine::run(config) {
+        println!("Error operating on save:\n\n\t{}.", e); 
     }
 }
