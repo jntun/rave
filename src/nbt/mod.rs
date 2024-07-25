@@ -2,6 +2,8 @@
 // Created by Justin Tunheim on 6/20/24
 //
 
+pub mod query;
+
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
 
@@ -302,6 +304,16 @@ impl Default for NBT {
             name:    TAGString{str: Vec::new()},
             payload: Payload::End,
         }
+    }
+}
+
+impl From<String> for TAGString {
+    fn from(value: String) -> Self {
+        let mut tag = Self{ str: Vec::new() }; 
+        for char in value.into_bytes() {
+            tag.str.push(char);
+        }
+        tag
     }
 }
 
