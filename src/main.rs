@@ -13,8 +13,15 @@ use config::{Value, Scope, Command, Method};
 
 const CODENAME: &str = "RAVE";
 
+fn commands() -> String {
+    format!("{}{}",
+        "\n\t--root  | -r : Path to a Minecraft Java save",
+        "\n\t--index | -i : Can be combined with commands that iterate / list to select a specific element"
+    )
+}
+
 fn usage() -> String {
-    format!("Usage: {} [OPTIONS] [COMMAND]", CODENAME.to_lowercase())
+    format!("Usage: {} [OPTIONS] [COMMAND]\n\t{}", CODENAME.to_lowercase(), commands())
 }
 
 fn working_path() -> Option<String> {
@@ -68,6 +75,10 @@ fn main() {
                     return println!("please provide the 'search' or 's' command with a name to search for. e.g 'rave search | s < name >'");
                 };
                 config.command = Value::User(Command::Search(Method::Name(name.1)));
+            },
+            "--help" => {
+                println!("{}", usage());
+                return;
             },
             _ => return println!("{}\n\tsupplied unknown argument {}.", usage(), arg),
         }
