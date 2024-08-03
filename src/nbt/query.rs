@@ -11,6 +11,6 @@ pub(crate) fn find_first_by_name(name: TAGString, root: &NBT) -> Result<NBT, Err
     Ok(NBT::default())
 }
 
-pub(crate) fn find_many_by_name(name: TAGString, root: &NBT) -> Result<NBT, Error> {
-    Ok(NBT::default())
+pub(crate) fn find_many_by_name(name: TAGString, root: &NBT) -> Result<Vec<NBT>, Error> {
+    Ok(Vec::new())
 }
