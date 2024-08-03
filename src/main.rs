@@ -6,7 +6,7 @@ use config::Configuration;
 
 mod nbt;
 mod region;
-mod engine;
+mod gestalt;
 mod config;
 
 use config::{Value, Scope, Command, Method};
@@ -84,7 +84,7 @@ fn main() {
         }
     }
 
-    if let Err(e) = engine::run(config) {
+    if let Err(e) = gestalt::run(config) {
         println!("Error operating on save:\n\n\t{}.", e); 
     }
 }
