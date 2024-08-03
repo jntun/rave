@@ -51,6 +51,7 @@ fn main() {
                 let Some(idx_iter) = args.next() else {
                     return println!("--index or -i argument requires a unsigned integer paramater e.g 'rave search \"minecraft:air\" --index 0");
                 };
+                config.index = Value::User(config::Index::Value(idx_iter.0));
             },
             "-r" | "--root" => {
                 let Some(dir) = args.next() else {
