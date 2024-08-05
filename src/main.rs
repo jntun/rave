@@ -81,11 +81,15 @@ fn main() {
                 println!("{}", usage());
                 return;
             },
-            _ => return println!("{}\n\tsupplied unknown argument {}.", usage(), arg),
+            _ => return println!("supplied unknown argument {}.\n\n{}", arg, usage()),
         }
+    }
+    
+    if let None = config.command.value() {
+        return println!("no command supplied.\n\t{}", usage());
     }
 
     if let Err(e) = gestalt::run(config) {
-        println!("Error operating on save:\n\n\t{}.", e); 
+        println!("Error operating on save:\n\n{}.", e); 
     }
 }
