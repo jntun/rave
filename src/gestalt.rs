@@ -34,6 +34,7 @@ pub enum Error {
     ReadFile(std::io::Error),
     Region(region::Report),
     Command(String),
+    Finding,
 }
 
 struct Gestalt {
@@ -51,51 +52,73 @@ pub fn run(config: config::Configuration) -> Result<(), Error> {
 }
 
 impl Gestalt {
+    fn fast_find(&mut self, method: &config::Method) -> Result<(), Error> {
+        Ok(())
+    }
+
     fn find_nbt(&mut self, config: &config::Configuration, file_list: directory::List) -> Result<(), Error> {
+        println!("finding: {:?}", file_list);
         let method = match config.command.value().unwrap() {
             config::Command::Search(method) => method,
             _ => return Err(Error::Command(format!("Gestalt::find() should not be called on anything but a config::Command::Search"))), 
         };
+        let Some(idx) = config.index.value() else {
+            return self.fast_find(method);
+        };
+        match idx {
+            config::Index::First => return self.fast_find(method),
+            _ => (),
+        }
 
-        println!("finding: {:?}", file_list);
-        for dir in directory::region_files(&config).overworld {
-            for file in std::fs::read_dir(dir).unwrap() {
-                let file = match file {
-                    Ok(file) => file,
-                    Err(e)   => return Err(Error::ReadFile(e)),
-                };
-                let buffer = match std::fs::read(file.path()) {
-                    Ok(buff) => buff,
+        let mut results= Vec::new();
+        for dir in file_list {
+            let files = match std::fs::read_dir(dir) {
+                Ok(f) => f,
+                Err(e) => return Err(Error::ReadFile(e)),
+            };
+            for file in files {
+                let buffer = match std::fs::read(file.unwrap().path()) {
+                    Ok(b) => b,
                     Err(e) => return Err(Error::ReadFile(e)),
                 };
-                let region = match region::Parser::new(buffer).parse() {
-                    Ok(region) => region,
+                let region= match region::Parser::new(buffer).parse() {
+                    Ok(r) => r,
                     Err(e) => return Err(Error::Region(e)),
                 };
                 for chunk in region {
-                    match (method, config.index.value()) {
-                        (config::Method::Name(name), Some(idx)) => {
-                            let results = nbt::query::find_many_by_name(nbt::TAGString::from(name.clone()), chunk.nbt());
-                            match idx {
-                                config::Index::First => (),
-                                config::Index::Value(i) => (),
-                                config::Index::All => (),
+                    let nbts = match method {
+                        config::Method::Name(name) => {
+                            match nbt::query::find_many_by_name(nbt::TAGString::from(name.clone()), chunk.nbt()) {
+                                Ok(nbts) => nbts,
+                                Err(e) => return Err(Error::Search(e)),
+                            }
+                        }
+                    };
+
+                    results.push(nbts);
+
+                    match idx {
+                        config::Index::Value(i) => {
+                            if &results.len() == i {
+                                break;
                             }
                         },
-                        (config::Method::Name(name), None) => {
-                        },
+                        _ => (),
                     }
                 }
             }
         }
+
         Ok(())
     }
 
     fn search(&mut self, config: config::Configuration) -> Result<(), Error> {
         let region_files = directory::region_files(&config);
+        println!("{}\n{:?}", "starting...", config);
         self.find_nbt(&config, region_files.overworld)?;
         self.find_nbt(&config, region_files.nether)?;
         self.find_nbt(&config, region_files.the_end)?;
+        println!("{}", "ending...");
         Ok(())
     }
 }
