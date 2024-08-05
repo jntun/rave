@@ -50,14 +50,14 @@ impl Debug for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Command::List(scope) => {
-                f.write_str("scope: ")?;
+                f.write_str("list: ")?;
                 match scope {
                     Scope::All => f.write_str("all"),
                     Scope::Region => f.write_str("region"),
                 }
             },
             Command::Search(method) => {
-                f.write_str("method")?;
+                f.write_str("search: ")?;
                 match method {
                     Method::Name(name) => f.write_fmt(format_args!("[name]: \"{}\"", name)),
                 }
