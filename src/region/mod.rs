@@ -184,6 +184,14 @@ impl Chunk {
     pub fn nbt(&self) -> &NBT {
         &self.root
     }
+
+    pub fn nbt_mut(&mut self) -> &mut NBT {
+        &mut self.root
+    }
+
+    pub fn nbt_owned(self) -> NBT {
+        self.root
+    }
 }
 
 
