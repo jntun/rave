@@ -21,6 +21,7 @@ pub struct TAGByteArray {
     pub body: Vec<TAGByte>,
 }
 
+#[derive(PartialEq)]
 pub struct TAGString {
     pub str: Vec<TAGByte>,
 }
