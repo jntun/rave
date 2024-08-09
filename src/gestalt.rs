@@ -88,7 +88,7 @@ impl Gestalt {
                 for chunk in region {
                     let nbts = match method {
                         config::Method::Name(name) => {
-                            match nbt::query::find_many_by_name(nbt::TAGString::from(name.clone()), chunk.nbt()) {
+                            match nbt::query::find_many_by_name(&nbt::TAGString::from(name.clone()), chunk.nbt_owned()) {
                                 Ok(nbts) => nbts,
                                 Err(e) => return Err(Error::Search(e)),
                             }
@@ -131,6 +131,12 @@ impl Gestalt {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", "error")
+        match self {
+            Self::Search(e) => f.write_fmt(format_args!("search: {}", e)),
+            Self::ReadFile(e) => f.write_fmt(format_args!("reading: {}", e)),
+            Self::Region(r) => f.write_fmt(format_args!("{}", r)),
+            Self::Command(cmd) => f.write_fmt(format_args!("command: {}", cmd)),
+            Self::Finding => f.write_fmt(format_args!("{}", "query gave no results")),
+        }
     }
 }
